@@ -21,8 +21,10 @@ func reopen(_ id: String, _ query: String) -> [String: Any] {
     ["uid": id, "type": "alfred.workflow.action.script", "version": 2,
      "config": ["script": "/usr/bin/osascript -e 'tell application id \"com.runningwithcrayons.Alfred\" to search \"\(query)\"'", "type": 0, "scriptargtype": 1, "escaping": 0, "scriptfile": ""]]
 }
-func link(_ id: String, modifiers: Int = 0) -> [String: Any] {
-    ["destinationuid": id, "modifiers": modifiers, "modifiersubtext": "", "vitoclose": false]
+func link(_ id: String, output: String? = nil) -> [String: Any] {
+    var connection: [String: Any] = ["destinationuid": id, "modifiers": 0, "modifiersubtext": "", "vitoclose": false]
+    connection["sourceoutputuid"] = output
+    return connection
 }
 let hotkey: [String: Any] = ["uid": "hotkey", "type": "alfred.workflow.trigger.hotkey", "version": 2,
     "config": ["action": 0, "argument": 0, "focusedappvariable": false, "focusedappvariablename": "",
@@ -32,19 +34,32 @@ func setting(_ variable: String, _ label: String, _ description: String, _ type:
 }
 let configuration = [
     setting("keyword", "Search keyword", "Open emoji search. A hotkey can also be assigned on the workflow canvas.", "textfield", ["default": "em", "required": true, "trim": true]),
-    setting("subtitle_style", "Result subtitles", "Keep results clean, or show English names below translated labels.", "popupbutton", ["default": "none", "pairs": [["Hidden", "none"], ["English translation", "english"]]]),
-    setting("icon_size", "Emoji size", "Artwork size within Alfred's icon area. Row size is controlled by your Alfred theme.", "popupbutton", ["default": "120", "pairs": [["Large", "120"], ["Medium", "108"], ["Small", "96"]]]),
+    setting("subtitle_style", "English names", "Keep results clean, or include English names beside translated labels.", "popupbutton", ["default": "none", "pairs": [["Hidden", "none"], ["English translation", "english"]]]),
+    setting("icon_size", "Emoji size", "Glyph size in the emoji grid.", "popupbutton", ["default": "120", "pairs": [["Large", "120"], ["Medium", "108"], ["Small", "96"]]]),
     setting("result_limit", "Maximum results", "Limit the number of search results.", "popupbutton", ["default": "40", "pairs": [["20", "20"], ["40", "40"], ["80", "80"]]])
 ]
-let objects = [hotkey, filter("search", "{var:keyword}", "Search Emoji", "search"),
+func gridKeyword(_ id: String, _ keyword: String) -> [String: Any] {
+    ["uid": id, "type": "alfred.workflow.input.keyword", "version": 1,
+     "config": ["keyword": keyword, "text": "Search Emoji", "subtext": "Open the emoji grid",
+                "withspace": true, "argumenttype": 2]]
+}
+
+let clipboardRoute: [String: Any] = ["uid": "clipboard-route", "type": "alfred.workflow.utility.conditional", "version": 1,
+    "config": ["conditions": ["paste", "copy"].map { action in
+        ["inputstring": "{var:emoji_action}", "matchmode": 0, "matchstring": action,
+         "matchcasesensitive": true, "outputlabel": action.capitalized, "uid": action]
+    }, "hideelse": true]]
+let grid: [String: Any] = ["uid": "grid", "type": "alfred.workflow.userinterface.alfredui", "version": 1,
+    "config": ["launchmode": 0, "path": "Emoji.alfredui", "stackview": false]]
+let objects = [hotkey, gridKeyword("search", "{var:keyword}"),
                filter("languages", "emojilang", "Emoji Search Languages", "languages"),
                filter("display", "emojidisplay", "Emoji Display Language", "display-languages"),
-               script("record-paste", "record"), script("record-copy", "record"),
+               script("record", "record"), clipboardRoute,
                clipboard("paste", true), clipboard("copy", false),
                script("toggle", "toggle-language"), script("set-display", "set-display"),
-               reopen("reopen-languages", "emojilang "), reopen("reopen-display", "emojidisplay ")]
+               reopen("reopen-languages", "emojilang "), reopen("reopen-display", "emojidisplay "), grid]
 let plist: [String: Any] = [
-    "bundleid": "com.glebosotov.alfred-emoji", "name": "Emoji", "version": "0.2.1",
+    "bundleid": "com.glebosotov.alfred-emoji", "name": "Emoji", "version": "0.4.1",
     "createdby": "Gleb Osotov", "webaddress": "https://github.com/glebosotov/alfred-emoji", "description": "Fast offline emoji search in 164 languages, with typo tolerance and native macOS artwork.", "disabled": false,
     "category": "Productivity", "userconfigurationconfig": configuration,
     "readme": """
@@ -53,9 +68,11 @@ let plist: [String: Any] = [
     Search 3,944 emoji offline in multiple languages, with exact-name priority and typo tolerance.
 
     ## Start
-    Type your search keyword (default `em`), or assign a shortcut to the Hotkey trigger on the canvas.
+    Type your search keyword (default `em`) and press Return, or open the grid directly with your assigned hotkey.
     Return uses Alfred’s native paste action, which also places the emoji on the clipboard. Command-Return only copies.
     Pasted emoji are marked transient to keep them out of clipboard history; the current clipboard still changes.
+
+    Filter by name, keyword or group, navigate with the arrow keys and press Return to paste.
 
     ## Languages
     `emojilang` toggles multiple search languages; English is always available.
@@ -63,17 +80,17 @@ let plist: [String: Any] = [
 
     ## Appearance
     Configure emoji size, optional English subtitles, result count and the search keyword below.
-    Alfred's theme controls row height and the overall icon area.
 
     ## Requirements and privacy
-    Alfred 5 Powerpack and macOS 13+. Apple Silicon and Intel are included in the portable package.
+    Alfred 6 Powerpack and macOS 13+. Apple Silicon and Intel are included in the portable package.
     No Python, Pillow, Homebrew or Nix runtime required. No network requests.
     Language settings and usage stay locally in Alfred's workflow data; indexes and icons are disposable caches.
     Unicode 17.0 / CLDR 48.2 data is included under Unicode License v3.
     """,
     "objects": objects,
-    "connections": ["hotkey": [link("search")], "search": [link("record-paste"), link("record-copy", modifiers: 1048576)],
-                    "record-paste": [link("paste")], "record-copy": [link("copy")],
+    "connections": ["hotkey": [link("grid")], "search": [link("grid")],
+                    "grid": [link("record")], "record": [link("clipboard-route")],
+                    "clipboard-route": [link("paste", output: "paste"), link("copy", output: "copy")],
                     "languages": [link("toggle")], "toggle": [link("reopen-languages")],
                     "display": [link("set-display")], "set-display": [link("reopen-display")]],
     "uidata": Dictionary(uniqueKeysWithValues: objects.enumerated().map { i, o in

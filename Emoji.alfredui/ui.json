@@ -1,0 +1,81 @@
+{
+  "variablesconfig": {
+    "initial_query": { "src": "args[0]", "default": "" },
+    "icon_size": { "src": "variable", "scriptenv": true },
+    "subtitle_style": { "src": "variable", "scriptenv": true },
+    "result_limit": { "src": "variable", "scriptenv": true }
+  },
+  "window": {
+    "root": {
+      "type": "view",
+      "layout": "border",
+      "padding": 5,
+      "spacing": 8,
+      "shortcuts": [
+        { "shortcut": "⌘↩", "action": { "type": "script", "src": "../emoji", "args": ["choose", "{value:grid.selected.emoji}", "copy"] } },
+        { "shortcut": "↑", "action": { "type": "function", "src": "grid", "args": "selectup" } },
+        { "shortcut": "↓", "action": { "type": "function", "src": "grid", "args": "selectdown" } },
+        { "shortcut": "←", "action": { "type": "function", "src": "grid", "args": "selectprevious" } },
+        { "shortcut": "→", "action": { "type": "function", "src": "grid", "args": "selectnext" } }
+      ],
+      "components": [
+        {
+          "type": "view", "layout": "border", "spacing": 8,
+          "constraints": { "region": "top", "insets": { "left": 9, "right": 9, "top": 7 } },
+          "components": [
+            {
+              "type": "imageview",
+              "constraints": { "region": "left", "position": "centre", "size": 17 },
+              "image": { "type": "symbol", "src": "magnifyingglass" },
+              "contenttintcolour": "secondaryLabelColor"
+            },
+            {
+              "type": "textfield", "id": "query",
+              "constraints": { "region": "centre" },
+              "text": "{var:initial_query}", "placeholder": "Search emoji", "font": { "size": 17 },
+              "focus": true, "bordered": false, "focusring": false, "background": null,
+              "textinsets": { "horizontal": 0, "vertical": 6 },
+              "events": [
+                { "triggers": "changed", "action": [ "{file:search.json}", "{file:caption.json}" ] },
+                { "triggers": "actioned", "action": "{file:choose.json}" }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dataview", "id": "grid",
+          "constraints": { "region": "centre", "size": { "height": 268 }, "insets": { "left": 9, "right": 9 } },
+          "placeholder": "No matching emoji",
+          "cols": 12, "spacing": 2,
+          "cell": {
+            "height": 52,
+            "init": { "tile.background": null },
+            "selected": { "tile.background": { "light": "#CBDDF4", "dark": "#385373" } },
+            "root": {
+              "type": "view", "id": "tile", "layout": "stack", "cornerradius": 8,
+              "components": [
+                { "type": "label", "id": "glyph", "constraints": { "position": "centre" }, "textalign": "centre", "font": { "size": 35 } }
+              ]
+            }
+          },
+          "data": {
+            "src": []
+          },
+          "events": [
+            { "triggers": "launched", "action": "{file:search.json}" },
+            { "triggers": "doubleclicked", "action": "{file:choose.json}" },
+            { "triggers": "changed", "action": "{file:caption.json}" }
+          ]
+        },
+        {
+          "type": "view", "layout": "border", "spacing": 12,
+          "constraints": { "region": "bottom", "size": { "height": 26 }, "insets": { "left": 9, "right": 9 } },
+          "components": [
+            { "type": "markdownarea", "background": null, "paragraphspacing": 0, "behaviour": { "scroll": "start" }, "id": "caption", "constraints": { "region": "centre" }, "font": { "size": 15 } },
+            { "type": "label", "constraints": { "region": "right", "position": "centre" }, "colour": "secondaryLabelColor", "text": "↩ Paste   ⌘↩ Copy" }
+          ]
+        }
+      ]
+    }
+  }
+}

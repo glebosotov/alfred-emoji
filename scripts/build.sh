@@ -17,7 +17,7 @@ rm -rf "$stage"
 rm -f dist/Emoji.alfredworkflow
 mkdir -p "$stage"
 cp .build/emoji "$stage/emoji"
-cp -R data "$stage/"
+cp -R data Emoji.alfredui "$stage/"
 .build/package-tool "$stage"
 EMOJI_DATA="$PWD/data" alfred_workflow_cache="$PWD/.build/icons" .build/emoji render-icon 👀 > "$stage/icon.png"
 (cd "$stage" && zip -q -r ../Emoji.alfredworkflow .)

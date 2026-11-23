@@ -1,0 +1,5 @@
+{
+  "type": "script",
+  "src": "../emoji",
+  "args": ["choose", "{value:grid.selected.emoji}"]
+}

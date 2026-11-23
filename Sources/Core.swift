@@ -91,7 +91,7 @@ struct Catalog {
         return emojis.map { emoji in
             let key = emojiKey(emoji.emoji)
             var names = [emoji.name]
-            var tags: [String] = []
+            var tags = [emoji.group]
             for code in searchCodes.sorted() {
                 if let a = annotations[code]?[key] {
                     if let name = a.name { names.append(name) }
@@ -99,6 +99,7 @@ struct Catalog {
                 }
             }
             let title = annotations[settings.displayLanguage]?[key]?.name ?? emoji.name
+            if !names.contains(title) { names.append(title) }
             return SearchEntry(emoji: emoji, title: title, names: names.map(normalize),
                                nameWords: Set(names.flatMap(words)), keywords: Set((names + tags).flatMap(words)))
         }
@@ -116,4 +117,35 @@ func search(_ entries: [SearchEntry], query: String, usage: [String: Usage], lim
         if (ua?.last ?? 0) != (ub?.last ?? 0) { return (ua?.last ?? 0) > (ub?.last ?? 0) }
         return a.2 < b.2
     }.prefix(limit).map { $0.0 }
+}
+
+// Keep match ranges in the original title so folded accents retain their spelling.
+func highlightedCaption(_ title: String, query: String) -> String {
+    let original = title as NSString
+    var matches = IndexSet()
+    for token in Set(query.split(whereSeparator: { $0.isWhitespace })) {
+        var start = 0
+        while start < original.length {
+            let range = original.range(of: String(token), options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                                       range: NSRange(location: start, length: original.length - start))
+            guard range.location != NSNotFound, range.length > 0 else { break }
+            let end = NSMaxRange(range)
+            matches.insert(integersIn: range.location..<end)
+            start = end
+        }
+    }
+    let syntax = CharacterSet(charactersIn: "\\`*_{}[]<>()#+-.!|~>")
+    func escaped(_ range: NSRange) -> String {
+        original.substring(with: range).unicodeScalars.map { scalar in
+            syntax.contains(scalar) ? "\\" + String(scalar) : String(scalar)
+        }.joined()
+    }
+    var caption = ""
+    var offset = 0
+    for range in matches.rangeView {
+        caption += escaped(NSRange(location: offset, length: range.lowerBound - offset))
+        caption += "**" + escaped(NSRange(location: range.lowerBound, length: range.count)) + "**"
+        offset = range.upperBound
+    }
+    return caption + escaped(NSRange(location: offset, length: original.length - offset))
 }

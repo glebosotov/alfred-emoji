@@ -86,12 +86,24 @@ func defaultSettings(_ catalog: Catalog) -> Settings {
     return Settings(languages: codes, displayLanguage: "en")
 }
 do {
+    if command == "caption" {
+        let caption = highlightedCaption(argument, query: CommandLine.arguments.dropFirst(3).first ?? "")
+        let action = ["update": ["ids": ["caption": ["text": caption]]]]
+        FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: action))
+        exit(0)
+    }
     let catalog = try Catalog(directory: dataURL)
     let settings = try load(Settings.self, "settings.json") ?? defaultSettings(catalog)
     switch command {
-    case "search":
+    case "choose":
+        // Return on an empty grid leaves the browser open.
+        let mode = CommandLine.arguments.dropFirst(3).first == "copy" ? "copy" : "paste"
+        let action: [String: Any] = catalog.emojis.contains(where: { $0.emoji == argument })
+            ? ["finish": ["args": argument, "variables": ["emoji_action": mode]]] : [:]
+        FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: action))
+    case "search", "grid":
         struct CachedIndex: Codable { let key: String; let entries: [SearchEntry] }
-        let key = "cldr48.2-emoji17-index1|" + settings.languages.sorted().joined(separator: ",") + "|" + settings.displayLanguage
+        let key = "cldr48.2-emoji17-index2|" + settings.languages.sorted().joined(separator: ",") + "|" + settings.displayLanguage
         let indexURL = cacheURL.appendingPathComponent("search-index.json")
         let entries: [SearchEntry]
         if let bytes = try? Data(contentsOf: indexURL), let index = try? decoder.decode(CachedIndex.self, from: bytes), index.key == key {
@@ -102,7 +114,21 @@ do {
             try encoder.encode(CachedIndex(key: key, entries: entries)).write(to: indexURL, options: .atomic)
         }
         let usage = try load([String: Usage].self, "usage.json") ?? [:]
-        let results = search(entries, query: argument, usage: usage, limit: min(100, max(10, Int(env["result_limit"] ?? "40") ?? 40)))
+        let resultLimit = min(100, max(10, Int(env["result_limit"] ?? "40") ?? 40))
+        let limit = command == "grid" && normalize(argument).isEmpty ? entries.count : resultLimit
+        let results = search(entries, query: argument, usage: usage, limit: limit)
+        if command == "grid" {
+            let glyphSize = ["120": 35, "108": 32, "96": 28][env["icon_size"] ?? "120"] ?? 35
+            let rows: [[String: Any]] = results.map { entry in
+                let showEnglish = env["subtitle_style"] == "english" && entry.title != entry.emoji.name
+                return ["uid": entry.emoji.id, "glyph.text": entry.emoji.emoji, "glyph.font.size": glyphSize,
+                        "emoji": entry.emoji.emoji, "title": showEnglish ? "\(entry.title) · \(entry.emoji.name)" : entry.title]
+            }
+            let data: [String: Any] = ["src": rows, "select": results.first?.emoji.id ?? ""]
+            let action = ["update": ["ids": ["grid": ["data": data]]]]
+            FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: action))
+            break
+        }
         let items: [[String: Any]] = try results.map { entry in
             ["title": entry.title, "subtitle": env["subtitle_style"] == "english" && entry.title != entry.emoji.name ? entry.emoji.name : "", "arg": entry.emoji.emoji,
              "icon": ["path": try icon(entry.emoji)], "text": ["copy": entry.emoji.emoji, "largetype": entry.emoji.emoji],

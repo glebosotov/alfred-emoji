@@ -1,6 +1,6 @@
 # Alfred Emoji
 
-Offline emoji search for Alfred 5 Powerpack on macOS 13 or newer.
+Offline emoji search for Alfred 6 Powerpack on macOS 13 or newer.
 Search multiple languages simultaneously, tolerate single-character typos and
 adjacent transpositions, and keep exact names above keyword matches.
 
@@ -10,7 +10,8 @@ Download [Emoji.alfredworkflow from the latest release](https://github.com/glebo
 and open it in Alfred. The portable build contains both
 Apple Silicon and Intel code; users need no Nix, Homebrew, Python or Pillow.
 
-- `em <query>` searches the enabled languages. Enter uses Alfred’s native paste action; Command-Enter only copies.
+- Type `em` or `em <query>` and press Return to open the emoji grid.
+- Browse all 3,944 emoji or search by name, keyword or Unicode group. Use the arrow keys to select. Return or double-click pastes the emoji, and Command-Return copies it.
 - Assign a shortcut to the Hotkey trigger on the workflow canvas.
 - Configure Workflow controls the keyword, emoji size, subtitles and result limit.
 - `emojilang` toggles search languages individually. A checkmark means enabled.
@@ -25,8 +26,7 @@ varies by locale. The bundled catalog contains 3,944 fully qualified Unicode 17
 emoji and 164 nonempty CLDR 48.2 annotation locales, including regional variants.
 Emoji appearance and glyph availability depend on the installed macOS font.
 
-Search and settings work offline. AppKit renders only visible result icons and
-caches them per macOS version. Settings and usage live in Alfred's workflow data
+Search and settings work offline. The grid uses native emoji glyphs. Settings and usage live in Alfred's workflow data
 directory; disposable icons and the selected-language index live in its cache.
 The workflow performs no network requests and has no persistent background process.
 

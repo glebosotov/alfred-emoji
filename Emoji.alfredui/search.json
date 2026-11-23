@@ -1,0 +1,5 @@
+{
+  "type": "script",
+  "src": "../emoji",
+  "args": ["grid", "{value:query.text}"]
+}

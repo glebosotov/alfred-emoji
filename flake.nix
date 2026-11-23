@@ -12,7 +12,7 @@
       packages = each (pkgs: {
         default = pkgs.stdenv.mkDerivation {
           pname = "alfred-emoji";
-          version = "0.2.1";
+          version = "0.4.1";
           src = self;
           nativeBuildInputs = [ pkgs.swift pkgs.zip ];
           MACOSX_DEPLOYMENT_TARGET = "13.0";
@@ -27,7 +27,7 @@
             swiftc Tools/Package.swift -o package-tool
             mkdir -p dist/Emoji.alfredworkflow.contents
             cp emoji dist/Emoji.alfredworkflow.contents/
-            cp -R data dist/Emoji.alfredworkflow.contents/
+            cp -R data Emoji.alfredui dist/Emoji.alfredworkflow.contents/
             ./package-tool dist/Emoji.alfredworkflow.contents
             EMOJI_DATA="$PWD/data" alfred_workflow_cache="$TMPDIR/icons" ./emoji render-icon 👀 > dist/Emoji.alfredworkflow.contents/icon.png
             cd dist/Emoji.alfredworkflow.contents

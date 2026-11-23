@@ -1,0 +1,5 @@
+{
+  "type": "script",
+  "src": "../emoji",
+  "args": ["caption", "{value:grid.selected.title}", "{value:query.text}"]
+}

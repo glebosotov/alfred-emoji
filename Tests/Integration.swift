@@ -12,10 +12,10 @@ import AppKit
         env["EMOJI_DATA"] = root.appendingPathComponent("data").path
         env["alfred_workflow_data"] = folder.appendingPathComponent("state").path
         env["alfred_workflow_cache"] = folder.appendingPathComponent("cache").path
-        func run(_ command: String, _ argument: String) throws -> Data {
+        func run(_ command: String, _ argument: String, _ extra: String...) throws -> Data {
             let p = Process(), pipe = Pipe()
             p.executableURL = root.appendingPathComponent(".build/emoji")
-            p.arguments = [command, argument]; p.environment = env; p.standardOutput = pipe
+            p.arguments = [command, argument] + extra; p.environment = env; p.standardOutput = pipe
             try p.run()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             p.waitUntilExit()
@@ -61,6 +61,25 @@ import AppKit
         require(try items(run("search", "Augen")).first?["arg"] as? String == "👀")
         _ = try run("set-display", "de")
         require(try items(run("search", "eyes")).first?["title"] as? String == "Augen")
+        func gridRows(_ query: String) throws -> [[String: Any]] {
+            let grid = try JSONSerialization.jsonObject(with: run("grid", query)) as! [String: Any]
+            let update = grid["update"] as! [String: Any]
+            let ids = update["ids"] as! [String: Any]
+            let gridUpdate = ids["grid"] as! [String: Any]
+            return (gridUpdate["data"] as! [String: Any])["src"] as! [[String: Any]]
+        }
+        let rows = try gridRows("")
+        precondition(rows.count == 3944 && rows.first?["emoji"] as? String == "🤩")
+        require(try gridRows("eeys").first?["title"] as? String == "Augen")
+        require(try gridRows("people body").count > 0)
+        require(try gridRows("zzzzzzzzz").isEmpty)
+        for mode in ["paste", "copy"] {
+            let choice = try JSONSerialization.jsonObject(with: run("choose", "👀", mode)) as! [String: [String: Any]]
+            precondition(choice["finish"]?["args"] as? String == "👀")
+            precondition((choice["finish"]?["variables"] as? [String: String])?["emoji_action"] == mode)
+        }
+        let empty = try JSONSerialization.jsonObject(with: run("choose", "")) as! [String: Any]
+        precondition(empty.isEmpty)
         langs = try items(run("languages", "en"))
         precondition(langs.first { $0["arg"] as? String == "en" }?["valid"] as? Bool == false)
         let plistURL = root.appendingPathComponent("dist/Emoji.alfredworkflow.contents/info.plist")
@@ -74,8 +93,19 @@ import AppKit
         let config = plist["userconfigurationconfig"] as! [[String: Any]]
         precondition(config.count == 4)
         let links = plist["connections"] as! [String: [[String: Any]]]
-        precondition(links["hotkey"]?.first?["destinationuid"] as? String == "search")
-        precondition(links["record-paste"]?.first?["destinationuid"] as? String == "paste")
+        precondition(links["hotkey"]?.first?["destinationuid"] as? String == "grid")
+        precondition(links["search"]?.first?["destinationuid"] as? String == "grid")
+        let gridKeywords = objects.filter { object in
+            guard object["type"] as? String == "alfred.workflow.input.keyword", let uid = object["uid"] as? String else { return false }
+            return links[uid]?.contains { $0["destinationuid"] as? String == "grid" } == true
+        }
+        precondition(gridKeywords.count == 1)
+        precondition(links["grid"]?.first?["destinationuid"] as? String == "record")
+        for route in links["clipboard-route"]! {
+            precondition(route["sourceoutputuid"] as? String == route["destinationuid"] as? String)
+        }
+        let searchInput = objects.first { $0["uid"] as? String == "search" }!
+        precondition(searchInput["type"] as? String == "alfred.workflow.input.keyword")
         let paste = objects.first { $0["uid"] as? String == "paste" }!["config"] as! [String: Any]
         precondition(paste["transient"] as? Bool == true)
         env["result_limit"] = "20"
